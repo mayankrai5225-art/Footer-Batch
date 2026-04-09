@@ -3,6 +3,7 @@ Mass footer changer for PDFs and Word docs - upload, add footer, download instan
 
 ## Deployment
 
-- Local development uses `http://localhost:5000` for the backend.
-- Production uses `VITE_API_BASE_URL` when set, otherwise it falls back to `/_/backend`.
-- If you deploy the backend on another host, set `VITE_API_BASE_URL` to that public URL before building the frontend.
+- Deploy the repository root on Vercel.
+- Vercel builds the `frontend` workspace and serves the app from `frontend/dist`.
+- The production upload endpoint is the same origin `/api/process-document` route.
+- Keep `backend/` for local development only.

@@ -1,0 +1,11 @@
+{
+  "name": "footer-batch",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "build": "npm run build -w frontend",
+    "dev": "npm run dev -w frontend"
+  }
+}
