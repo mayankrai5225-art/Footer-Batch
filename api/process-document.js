@@ -1,4 +1,3 @@
-import { Readable } from "stream";
 import Busboy from "busboy";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import JSZip from "jszip";
@@ -231,16 +230,20 @@ function parseMultipart(req) {
     busboy.on("error", reject);
     busboy.on("finish", () => resolve({ fields, files }));
 
-    // Vercel pre-buffers the request body, so req.pipe() won't work.
-    // If the body is already available as a Buffer/string, push it
-    // into a new Readable stream and pipe that into Busboy instead.
-    if (req.body) {
-      const bodyBuf =
-        typeof req.body === "string" ? Buffer.from(req.body) : req.body;
-      const readable = Readable.from(bodyBuf);
-      readable.pipe(busboy);
-    } else {
+    // Vercel pre-buffers the request body into req.body.
+    // Busboy is a Writable stream, so we can write the buffer directly.
+    if (Buffer.isBuffer(req.body)) {
+      busboy.end(req.body);
+    } else if (typeof req.body === "string") {
+      busboy.end(Buffer.from(req.body, "binary"));
+    } else if (req.readable) {
       req.pipe(busboy);
+    } else {
+      // Last resort: collect the stream manually
+      const chunks = [];
+      req.on("data", (chunk) => chunks.push(chunk));
+      req.on("end", () => busboy.end(Buffer.concat(chunks)));
+      req.on("error", reject);
     }
   });
 }
@@ -337,5 +340,4 @@ export default async function handler(req, res) {
 
 export const config = {
   maxDuration: 60,
-  supportsResponseStreaming: true,
 };
