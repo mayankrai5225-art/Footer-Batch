@@ -321,3 +321,7 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: "Something went wrong while processing your documents." });
   }
 };
+
+module.exports.config = {
+  maxDuration: 60,
+};

@@ -322,3 +322,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Something went wrong while processing your documents." });
   }
 }
+
+export const config = {
+  maxDuration: 60,
+};
