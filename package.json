@@ -2,7 +2,6 @@
   "name": "footer-batch",
   "private": true,
   "version": "1.0.0",
-  "workspaces": ["frontend"],
   "dependencies": {
     "busboy": "^1.6.0",
     "jszip": "^3.10.1",
