@@ -1,6 +1,7 @@
-const Busboy = require("busboy");
-const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
-const JSZip = require("jszip");
+import Busboy from "busboy";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import JSZip from "jszip";
+import path from "path";
 
 const MAX_BATCH = 10;
 const PDF_MIME = "application/pdf";
@@ -232,7 +233,7 @@ function parseMultipart(req) {
   });
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -302,7 +303,7 @@ module.exports = async (req, res) => {
     for (const { buffer, fileName } of outputs) {
       let uniqueName = fileName;
       let suffix = 1;
-      const parsed = require("path").parse(fileName);
+      const parsed = path.parse(fileName);
       while (usedNames.has(uniqueName)) {
         uniqueName = `${parsed.name}-${suffix}${parsed.ext}`;
         suffix += 1;
@@ -320,4 +321,4 @@ module.exports = async (req, res) => {
     console.error("Processing error:", error);
     return res.status(500).json({ error: "Something went wrong while processing your documents." });
   }
-};
+}
