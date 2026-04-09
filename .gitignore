@@ -5,3 +5,6 @@ frontend/dist
 backend/uploads
 .DS_Store
 Thumbs.db
+.vercel
+.env
+.env.local
