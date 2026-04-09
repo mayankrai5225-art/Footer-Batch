@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 
-const API_BASE_URL = "http://localhost:5000";
+const DEFAULT_API_BASE_URL = import.meta.env.DEV ? "http://localhost:5000" : "/_/backend";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
 const ALLOWED_TYPES = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
