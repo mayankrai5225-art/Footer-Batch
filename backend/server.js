@@ -35,23 +35,35 @@ async function processPdf(fileBuffer, footerParts, includePageNumbers) {
   const pdfDoc = await PDFDocument.load(fileBuffer);
   const pages = pdfDoc.getPages();
   const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-  const fontSize = 10;
-  const margin = 24;
+  const fontSize = 12;
+  const footerHeight = 76;
 
   pages.forEach((page, index) => {
-    const { width } = page.getSize();
-    const yPosition = 20;
-    const leftText = `Name: ${footerParts.name}`;
-    const centerText = `Class: ${footerParts.className}`;
-    const rightBaseText = `Roll No: ${footerParts.rollNo}`;
+    const { width, height } = page.getSize();
+    const yPosition = 24;
+    const leftText = footerParts.name;
+    const centerText = footerParts.className;
+    const rightBaseText = footerParts.rollNo;
     const pagePart = includePageNumbers ? ` | ${index + 1}/${pages.length}` : "";
     const rightText = `${rightBaseText}${pagePart}`;
+    const footerBandWidth = width * 0.68;
+    const footerBandStart = (width - footerBandWidth) / 2;
+    const footerBandEnd = footerBandStart + footerBandWidth;
     const centerTextWidth = font.widthOfTextAtSize(centerText, fontSize);
     const rightTextWidth = font.widthOfTextAtSize(rightText, fontSize);
 
-    // Draw three footer blocks across full width: left, center, right.
+    // Paint over the existing footer area so older footer text does not remain visible.
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width,
+      height: Math.min(footerHeight, height),
+      color: rgb(1, 1, 1),
+    });
+
+    // Draw three footer blocks inside a centered band to avoid edge-hugging footers.
     page.drawText(leftText, {
-      x: margin,
+      x: footerBandStart,
       y: yPosition,
       size: fontSize,
       font,
@@ -67,7 +79,7 @@ async function processPdf(fileBuffer, footerParts, includePageNumbers) {
     });
 
     page.drawText(rightText, {
-      x: Math.max(margin, width - rightTextWidth - margin),
+      x: Math.max(footerBandStart, footerBandEnd - rightTextWidth),
       y: yPosition,
       size: fontSize,
       font,
@@ -87,8 +99,12 @@ function escapeXml(value) {
     .replace(/'/g, "&apos;");
 }
 
+function makeDocxRunPropertiesXml() {
+  return '<w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:i w:val="0"/></w:rPr>';
+}
+
 function makeDocxRunXml(text, extraInnerXml = "") {
-  return `<w:r><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/><w:i w:val="0"/></w:rPr><w:t${text.includes(" ") ? ' xml:space="preserve"' : ""}>${text}</w:t>${extraInnerXml}</w:r>`;
+  return `<w:r>${makeDocxRunPropertiesXml()}<w:t${text.includes(" ") ? ' xml:space="preserve"' : ""}>${text}</w:t>${extraInnerXml}</w:r>`;
 }
 
 /**
@@ -102,6 +118,7 @@ async function processDocx(fileBuffer, footerParts, includePageNumbers) {
   const contentTypesPath = "[Content_Types].xml";
   const footerFileName = "footer-custom.xml";
   const footerXmlPath = `word/${footerFileName}`;
+  const footerRelationshipType = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer";
 
   const documentXmlFile = zip.file(documentXmlPath);
   const relsXmlFile = zip.file(relsXmlPath);
@@ -115,9 +132,9 @@ async function processDocx(fileBuffer, footerParts, includePageNumbers) {
   let relsXml = await relsXmlFile.async("string");
   let contentTypesXml = await contentTypesFile.async("string");
 
-  const leftText = escapeXml(`Name: ${footerParts.name}`);
-  const centerText = escapeXml(`Class: ${footerParts.className}`);
-  const rightText = escapeXml(`Roll No: ${footerParts.rollNo}`);
+  const leftText = escapeXml(footerParts.name);
+  const centerText = escapeXml(footerParts.className);
+  const rightText = escapeXml(footerParts.rollNo);
   const pageNumberXml = includePageNumbers
     ? `
       ${makeDocxRunXml(" | ")}
@@ -140,8 +157,8 @@ async function processDocx(fileBuffer, footerParts, includePageNumbers) {
   <w:p>
     <w:pPr>
       <w:tabs>
-        <w:tab w:val="center" w:pos="4680"/>
-        <w:tab w:val="right" w:pos="9360"/>
+        <w:tab w:val="center" w:pos="3600"/>
+        <w:tab w:val="right" w:pos="7200"/>
       </w:tabs>
     </w:pPr>
     ${makeDocxRunXml(leftText)}
@@ -152,33 +169,45 @@ async function processDocx(fileBuffer, footerParts, includePageNumbers) {
   </w:p>
 </w:ftr>`;
 
-  // 1) Add or update footer file in package.
+  // 1) Remove all existing footer package parts so no old footer content survives.
+  for (const fileName of zip.file(/^(word\/footer[^/]*\.xml|word\/_rels\/footer[^/]*\.xml\.rels)$/)) {
+    if (fileName.name !== footerXmlPath) {
+      zip.remove(fileName.name);
+    }
+  }
+
+  // 2) Add or update the single footer file in package.
   zip.file(footerXmlPath, footerXml);
 
-  // 2) Ensure relationship exists from document.xml to footer XML.
+  // 3) Replace every existing footer relationship with one relationship to the new footer.
   const existingFooterRel = relsXml.match(
-    /<Relationship[^>]*Type="http:\/\/schemas\.openxmlformats\.org\/officeDocument\/2006\/relationships\/footer"[^>]*Target="footer-custom\.xml"[^>]*Id="([^"]+)"[^>]*\/>|<Relationship[^>]*Id="([^"]+)"[^>]*Type="http:\/\/schemas\.openxmlformats\.org\/officeDocument\/2006\/relationships\/footer"[^>]*Target="footer-custom\.xml"[^>]*\/>/i
+    new RegExp(
+      `<Relationship[^>]*Type="${footerRelationshipType}"[^>]*Target="${footerFileName}"[^>]*Id="([^"]+)"[^>]*\/>|<Relationship[^>]*Id="([^"]+)"[^>]*Type="${footerRelationshipType}"[^>]*Target="${footerFileName}"[^>]*\/>`,
+      "i"
+    )
   );
 
   let footerRelId = existingFooterRel?.[1] || existingFooterRel?.[2] || "rIdFooterCustom";
-  if (!existingFooterRel) {
-    relsXml = relsXml.replace(
-      "</Relationships>",
-      `<Relationship Id="${footerRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="${footerFileName}"/></Relationships>`
-    );
-  }
+  relsXml = relsXml.replace(
+    /<Relationship[^>]*Type="http:\/\/schemas\.openxmlformats\.org\/officeDocument\/2006\/relationships\/footer"[^>]*\/?>/gi,
+    ""
+  );
+  relsXml = relsXml.replace(
+    "</Relationships>",
+    `<Relationship Id="${footerRelId}" Type="${footerRelationshipType}" Target="${footerFileName}"/></Relationships>`
+  );
 
-  // 3) Ensure each section has a default footer reference.
+  // 4) Ensure each section points all footer variants to the new footer.
+  // Some documents use first/even page footers, so replacing only "default"
+  // may still show old footer text on certain pages.
   const addOrReplaceFooterReference = (sectPrXml) => {
-    if (/<w:footerReference[^>]*w:type="default"[^>]*\/>/.test(sectPrXml)) {
-      return sectPrXml.replace(
-        /<w:footerReference[^>]*w:type="default"[^>]*\/>/,
-        `<w:footerReference w:type="default" r:id="${footerRelId}"/>`
-      );
-    }
-    return sectPrXml.replace(
+    // Remove any existing footer references (default/first/even).
+    const withoutExisting = sectPrXml.replace(/<w:footerReference[^>]*\/>/g, "");
+
+    // Re-add all three types to force Word to use this new footer everywhere.
+    return withoutExisting.replace(
       "</w:sectPr>",
-      `<w:footerReference w:type="default" r:id="${footerRelId}"/></w:sectPr>`
+      `<w:footerReference w:type="default" r:id="${footerRelId}"/><w:footerReference w:type="first" r:id="${footerRelId}"/><w:footerReference w:type="even" r:id="${footerRelId}"/></w:sectPr>`
     );
   };
 
@@ -189,11 +218,15 @@ async function processDocx(fileBuffer, footerParts, includePageNumbers) {
   } else {
     documentXml = documentXml.replace(
       "</w:body>",
-      `<w:sectPr><w:footerReference w:type="default" r:id="${footerRelId}"/></w:sectPr></w:body>`
+      `<w:sectPr><w:footerReference w:type="default" r:id="${footerRelId}"/><w:footerReference w:type="first" r:id="${footerRelId}"/><w:footerReference w:type="even" r:id="${footerRelId}"/></w:sectPr></w:body>`
     );
   }
 
-  // 4) Ensure content type entry exists for footer XML.
+  // 5) Rebuild footer content types so only the new footer remains registered.
+  contentTypesXml = contentTypesXml.replace(
+    /<Override PartName="\/word\/footer[^\"]*\.xml" ContentType="application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.footer\+xml"\/>/gi,
+    ""
+  );
   if (!contentTypesXml.includes('/word/footer-custom.xml')) {
     contentTypesXml = contentTypesXml.replace(
       "</Types>",
@@ -250,19 +283,7 @@ app.post("/api/process-document", upload.array("documents", MAX_BATCH), async (r
       return res.status(400).json({ error: "Please upload at least one PDF or DOCX file." });
     }
 
-    const name = String(req.body.name || "").trim();
-    const className = String(req.body.className || "").trim();
-    const rollNo = String(req.body.rollNo || "").trim();
     const includePageNumbers = String(req.body.includePageNumbers || "false").toLowerCase() === "true";
-
-    if (!name || !className || !rollNo) {
-      for (const f of uploadedFiles) {
-        await fs.unlink(f.path).catch(() => {});
-      }
-      return res.status(400).json({ error: "Name, Class, and Roll No are all required." });
-    }
-
-    const footerParts = { name, className, rollNo };
 
     // Validate all MIME types before processing (beginner-friendly: fail fast with a clear message).
     for (const f of uploadedFiles) {
@@ -277,6 +298,12 @@ app.post("/api/process-document", upload.array("documents", MAX_BATCH), async (r
     }
 
     const outputs = [];
+    const footerParts = {
+      name: String(req.body.name || "").trim(),
+      className: String(req.body.className || "").trim(),
+      rollNo: String(req.body.rollNo || "").trim(),
+    };
+
     for (const f of uploadedFiles) {
       try {
         outputs.push(await processOneUploadedFile(f, footerParts, includePageNumbers));

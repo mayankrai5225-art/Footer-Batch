@@ -7,6 +7,11 @@ const ALLOWED_TYPES = [
 ];
 const MAX_FILES = 10;
 
+function formatFooterValue(value, fallback) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : fallback;
+}
+
 function App() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [studentName, setStudentName] = useState("");
@@ -18,6 +23,15 @@ function App() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const acceptedExtensionsLabel = useMemo(() => ".pdf, .docx", []);
+  const footerPreview = useMemo(
+    () => ({
+      name: formatFooterValue(studentName, "Your name"),
+      className: formatFooterValue(className, "Your class"),
+      rollNo: formatFooterValue(rollNo, "Your roll no"),
+      pageNumbers: includePageNumbers,
+    }),
+    [studentName, className, rollNo, includePageNumbers]
+  );
 
   /** Keep only PDF/DOCX and cap at MAX_FILES; merge with existing list without duplicates by name+size. */
   const addFiles = useCallback((fileList) => {
@@ -153,7 +167,7 @@ function App() {
           <p className="eyebrow">Footer batch</p>
           <h1>Add footer to documents</h1>
           <p className="lead">
-            Up to {MAX_FILES} PDF or Word files. Same footer (Name · Class · Roll No) on every file.
+            Up to {MAX_FILES} PDF or Word files. Same footer details on every file.
           </p>
         </header>
 
@@ -264,16 +278,46 @@ function App() {
                 <span>Include page numbers (right side of footer)</span>
               </label>
 
-              <p className="footer-preview">
-                Layout: <strong>Name</strong> (left) · <strong>Class</strong> (center) ·{" "}
-                <strong>Roll No</strong> (right) — Times New Roman, not italic
-              </p>
-
               {errorMessage ? <p className="error-text">{errorMessage}</p> : null}
 
               <button type="submit" disabled={isLoading || selectedFiles.length === 0} className="submit-button">
                 {isLoading ? "Processing…" : selectedFiles.length > 1 ? "Process & download ZIP" : "Process & download"}
               </button>
+            </section>
+
+            <section className="panel panel-preview">
+              <div className="panel-head">
+                <h2>Live footer preview</h2>
+                <span className="count">Updates as you type</span>
+              </div>
+
+              <div className="preview-card">
+                <div className="preview-page">
+                  <div className="preview-body">
+                    <div className="preview-text-block">
+                      <span className="preview-label">Document preview</span>
+                      <p className="preview-copy">
+                        Your selected files will receive the footer shown below.
+                      </p>
+                    </div>
+
+                    <div className="preview-footer">
+                      <div className="preview-footer-item">
+                        <strong>{footerPreview.name}</strong>
+                      </div>
+                      <div className="preview-footer-item preview-footer-center">
+                        <strong>{footerPreview.className}</strong>
+                      </div>
+                      <div className="preview-footer-item preview-footer-right">
+                        <strong>
+                          {footerPreview.rollNo}
+                          {footerPreview.pageNumbers ? " | Page 1/5" : ""}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </section>
           </form>
         </div>
