@@ -1,53 +1,61 @@
-# Footer-Batch
+# Footer Batch 🚀
 
-Mass footer changer for PDFs and Word docs — upload, add footer, download instantly.
+**Footer Batch** is a lightning-fast, privacy-first web application that allows you to add custom footers (Name, Class, Roll No, and Page Numbers) to multiple PDF and Word (.docx) documents simultaneously.
 
-## Live Deployment
+## ✨ Why Footer Batch?
 
-This app is deployed on **Vercel** and accessible globally at your Vercel URL.
+- **Zero Latency**: All processing happens directly in your browser. No more waiting for file uploads or server responses.
+- **Privacy First**: Your documents **never leave your computer**. Processing is 100% local, keeping your data secure.
+- **Batch Processing**: Process up to 10 documents at once and download them as a single ZIP or individual files.
+- **Live Preview**: See exactly how your footer will look before you process the documents.
 
-## How to Deploy (make it live for everyone)
+## 🛠️ Tech Stack
 
-### Step 1: Push to GitHub
+- **Frontend**: [React](https://reactjs.org/) + [Vite](https://vitejs.dev/)
+- **PDF Manipulation**: [pdf-lib](https://pdf-lib.js.org/)
+- **Word Manipulation**: [jszip](https://stuk.github.io/jszip/) (Custom OOXML injection)
+- **Deployment**: [Vercel](https://vercel.com/) (Static Hosting)
 
-```bash
-git add .
-git commit -m "ready for deployment"
-git push origin main
-```
+## 🚀 Getting Started
 
-### Step 2: Deploy on Vercel
+### Prerequisites
 
-1. Go to [vercel.com](https://vercel.com) and sign in with your GitHub account.
-2. Click **"Add New Project"** → Import your **Footer-Batch** repository.
-3. Vercel will auto-detect the settings from `vercel.json`. **No configuration needed.**
-4. Click **"Deploy"** — your app will be live in ~60 seconds.
-5. You'll get a URL like `https://footer-batch.vercel.app` — share it with anyone on the globe!
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- npm or yarn
 
-### How It Works
+### Installation
 
-| Layer      | Technology            | Location                    |
-|------------|-----------------------|-----------------------------|
-| Frontend   | React + Vite          | `frontend/` → built to `frontend/dist` |
-| Backend    | Vercel Serverless Fn  | `api/process-document.js`   |
-| Hosting    | Vercel Edge Network   | 30+ global regions          |
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/Footer-Batch.git
+   cd Footer-Batch
+   ```
 
-- Vercel builds the frontend from `frontend/` and serves the static files.
-- The `/api/process-document` endpoint runs as a serverless function.
-- Files are processed in-memory (no storage needed) — scales automatically.
+2. Install dependencies for the frontend:
+   ```bash
+   cd frontend
+   npm install
+   ```
 
-## Local Development
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-```bash
-# Terminal 1 — Backend
-cd backend
-npm install
-npm run dev
+4. Open `http://localhost:5173` in your browser.
 
-# Terminal 2 — Frontend
-cd frontend
-npm install
-npm run dev
-```
+## 📦 Deployment
 
-The frontend dev server runs at `http://localhost:5173` and proxies API calls to the backend at `http://localhost:5000`.
+Since the app is now a fully static site, deployment is simple:
+
+1. Connect your repository to **Vercel**.
+2. Set the **Root Directory** to `frontend`.
+3. Vercel will automatically detect Vite and deploy your app.
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information (if applicable).
+
+---
+
+Built with ❤️ by [Mayank Rai](https://github.com/mayankrai5225-art)
